@@ -1,0 +1,37 @@
+---
+- name: Create Nginx site config from template
+  template:
+    src: "{{ playbook_dir }}/roles/nginx/templates/nginx-site.conf.j2"
+    dest: "{{ nginx_conf_dir }}/{{ container_name }}.conf"
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Enable the Nginx site
+  file:
+    src: "{{ nginx_conf_dir }}/{{ container_name }}.conf"
+    dest: "{{ nginx_sites_enabled }}/{{ container_name }}.conf"
+    state: link
+    force: yes
+
+- name: Test Nginx configuration
+  shell: |
+         nginx -t
+  register: nginx_test
+  args:
+    executable: /bin/bash
+  ignore_errors: true
+
+- name: Fail if Nginx configuration test failed
+  fail:
+    msg: "Nginx configuration test failed!"
+  when: nginx_test.rc != 0
+
+- name: Reload Nginx to apply changes
+  service:
+    name: nginx
+    state: reloaded
+
+- name: Output subdomain for the container
+  debug:
+    msg: "Container {{ container_name }} is available at http://{{ container_name }}.{{ base_domain }}"

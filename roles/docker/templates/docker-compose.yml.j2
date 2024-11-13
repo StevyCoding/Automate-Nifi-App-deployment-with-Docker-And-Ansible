@@ -1,0 +1,13 @@
+services:
+  # Data extraction, transformation and load service
+  {{container_name}}:
+    image: 'apache/nifi:latest'  
+    container_name: "{{ container_name }}"
+    restart: on-failure
+    ports:
+      - '{{ host_port }}:8443'  # Map host port to container port*
+    environment:
+      - SINGLE_USER_CREDENTIALS_USERNAME=root
+      - SINGLE_USER_CREDENTIALS_PASSWORD=accessnifipage4041
+      - NIFI_WEB_HTTPS_PORT=8443 
+

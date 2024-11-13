@@ -1,0 +1,104 @@
+- name: A play that runs entirely on the Ansible host
+  hosts: 127.0.0.1
+  connection: local
+  vars :
+    base_domain: "merload.fr"
+    docker: "./docker"
+    container_image: apache/nifi
+    nginx_conf_dir: /etc/nginx/sites-available
+    nginx_sites_enabled: /etc/nginx/sites-enabled
+
+  tasks:
+  - name: Generate a random container name
+    set_fact:
+        container_name: "nifi-{{ 10000 | random }}"
+  - name: Run shell command
+    shell: |
+      comm -23 <(seq 8000 9000) <(ss -tuln | awk '{print $5}' | grep -oE '[0-9]+$' | sort | uniq)
+    register: ports
+    args:
+        executable: /bin/bash
+  - name: Display unused port
+    debug:
+        msg: "Found unused port: {{ ports.stdout_lines[0] }}"
+
+   
+  - name: Set the host port as a fact
+    set_fact:
+       host_port: "{{ ports.stdout_lines[0] }}"
+       
+  - name: Create Docker Compose project directory
+    file:
+       path: "{{ docker }}"
+       state: directory
+       owner: ubuntu
+       group: ubuntu
+       mode: 0755
+       
+  - name: Generate Docker Compose file from template
+    template:
+        src: templates/docker-compose.yml.j2
+        dest: "{{ docker }}/docker-compose.yml"
+        owner: ubuntu
+        group: ubuntu
+        mode: 0644
+        
+  - name: Start Docker Compose service
+    shell: sudo docker compose up -d
+    register: command_output
+    args:
+       chdir: "{{ docker }}"
+
+  - name: Display compose result
+    debug:
+        var:  command_output.stdout_lines
+
+        
+  - name: Get the IP address of the running container
+    shell: |
+      sudo docker inspect -f '{{ "{{ .NetworkSettings.IPAddress }}" }}' {{ container_name }}
+    register: container_ip_result
+    args:
+      executable: /bin/bash
+      
+  - name: Set the container IP address as a fact
+    set_fact:
+      container_ip: "{{ container_ip_result.stdout }}"
+        
+  - name: Create Nginx site config from template
+    template:
+        src: templates/nginx-site.conf.j2
+        dest: "{{ nginx_conf_dir }}/{{ container_name }}.conf"
+        owner: root
+        group: root
+        mode: 0644
+        
+  - name: Enable the Nginx site
+    file:
+       src: "{{ nginx_conf_dir }}/{{ container_name }}.conf"
+       dest: "{{ nginx_sites_enabled }}/{{ container_name }}.conf"
+       state: link
+       force: yes
+
+  - name: Test Nginx configuration
+    shell: | 
+      sudo nginx -t
+    register: nginx_test
+    args:
+      executable: /bin/bash
+    ignore_errors: true
+
+  - name: Fail if Nginx configuration test failed
+    fail:
+       msg: "Nginx configuration test failed!"
+    when: nginx_test.rc != 0
+     
+  - name: Reload Nginx to apply changes
+    service:
+       name: nginx
+       state: reloaded
+       
+  - name: Output subdomain for the container
+    debug:
+       msg: "Container {{ container_name }} is available at http://{{ container_name }}.{{ base_domain }}"      
+      

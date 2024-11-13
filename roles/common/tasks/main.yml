@@ -1,0 +1,19 @@
+---
+- name: Generate a random container name
+  set_fact:
+    container_name: "nifi-{{ 10000 | random }}"
+
+- name: Run shell command to find unused port
+  shell: |
+    comm -23 <(seq 8000 9000) <(ss -tuln | awk '{print $5}' | grep -oE '[0-9]+$' | sort | uniq)
+  register: ports
+  args:
+    executable: /bin/bash
+
+- name: Display unused port
+  debug:
+    msg: "Found unused port: {{ ports.stdout_lines[0] }}"
+
+- name: Set the host port as a fact
+  set_fact:
+    host_port: "{{ ports.stdout_lines[0] }}"

@@ -1,0 +1,38 @@
+version: '3.8'  # Specify the version of the Docker Compose file format
+
+services:
+  # Data extraction, transformation and load service
+  {{container_name}}:
+    image: 'apache/nifi:1.14.0'  # Latest image as of 2021-11-09
+    container_name: "{{ container_name }}"
+    restart: on-failure
+    ports:
+      - '{{ host_port }}:8080'  # Map host port to container port
+    environment:
+      - NIFI_WEB_HTTP_PORT=8080
+      - NIFI_CLUSTER_IS_NODE=true
+      - NIFI_CLUSTER_NODE_PROTOCOL_PORT=8082
+      - NIFI_ZK_CONNECT_STRING=myzookeeper:2181
+      - NIFI_ELECTION_MAX_WAIT=30 sec
+      - NIFI_SENSITIVE_PROPS_KEY='12345678901234567890A'
+    healthcheck:
+      test: "${DOCKER_HEALTHCHECK_TEST:-curl localhost:8091/nifi/}"
+      interval: "60s"
+      timeout: "3s"
+      start_period: "5s"
+      retries: 5
+    volumes:
+      - ./nifi/database_repository:/opt/nifi/nifi-current/database_repository
+      - ./nifi/flowfile_repository:/opt/nifi/nifi-current/flowfile_repository
+      - ./nifi/content_repository:/opt/nifi/nifi-current/content_repository
+      - ./nifi/provenance_repository:/opt/nifi/nifi-current/provenance_repository
+      - ./nifi/state:/opt/nifi/nifi-current/state
+      - ./nifi/logs:/opt/nifi/nifi-current/logs
+      # Uncomment the next line after copying the /conf directory from the container to your local directory to persist NiFi flows
+      #- ./nifi/conf:/opt/nifi/nifi-current/conf
+    networks:
+      - my_persistent_network
+
+networks:
+  my_persistent_network:
+    driver: bridge

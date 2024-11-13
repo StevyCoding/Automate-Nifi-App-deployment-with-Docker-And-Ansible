@@ -1,0 +1,13 @@
+- name: A play that runs entirely on the Ansible host
+  hosts: 127.0.0.1
+  connection: local
+  vars:
+    base_domain: "merload.fr"
+    docker: "./docker"
+    container_image: apache/nifi
+    nginx_conf_dir: /etc/nginx/sites-available
+    nginx_sites_enabled: /etc/nginx/sites-enabled
+  roles:
+    - common
+    - docker
+    - nginx

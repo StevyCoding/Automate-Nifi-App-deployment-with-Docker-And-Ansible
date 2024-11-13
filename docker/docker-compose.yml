@@ -1,0 +1,12 @@
+services:
+  # Data extraction, transformation and load service
+  nifi-858:
+    image: 'apache/nifi:latest'  
+    container_name: "nifi-858"
+    restart: on-failure
+    ports:
+      - '8005:8443'  # Map host port to container port*
+    environment:
+      - SINGLE_USER_CREDENTIALS_USERNAME=root
+      - SINGLE_USER_CREDENTIALS_PASSWORD=accessnifipage4041
+      - NIFI_WEB_HTTPS_PORT=8443 

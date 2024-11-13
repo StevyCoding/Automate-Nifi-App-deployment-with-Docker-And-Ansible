@@ -1,0 +1,36 @@
+server {
+    # Listen on HTTP and redirect to HTTPS
+    listen 80;
+    listen [::]:80;
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+
+    server_name {{ container_name }}.{{ base_domain }};
+    
+    # SSL certificates
+    ssl_certificate /etc/letsencrypt/live/merload.fr/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/merload.fr/privkey.pem;
+
+location / {
+    # Use HTTPS for NiFi connection
+    proxy_pass https://localhost:{{ host_port }};  # Replace {{ host_port }} with the actual port (e.g., 8443)
+    proxy_ssl_server_name on;
+    proxy_ssl_verify off; # Development use only
+
+    # NiFi-specific headers
+    proxy_set_header Authorization $http_authorization;
+    proxy_set_header X-ProxyScheme "http";
+    proxy_set_header X-ProxyHost localhost;
+    proxy_set_header X-ProxyPort 80;
+    proxy_set_header X-ProxyContextPath "/";
+
+    # Handle WebSocket connections
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+}
+
+
+    error_log /var/log/nginx/{{ container_name }}.{{ base_domain }}_error.log;
+    access_log /var/log/nginx/{{ container_name }}.{{ base_domain }}_access.log;
+}

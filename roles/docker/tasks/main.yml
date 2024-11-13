@@ -1,0 +1,37 @@
+---
+- name: Create Docker Compose project directory
+  file:
+    path: "{{ docker }}"
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: 0755
+
+- name: Generate Docker Compose file from template
+  template:
+    src: "{{ playbook_dir }}/roles/docker/templates/docker-compose.yml.j2"
+    dest: "{{ docker }}/docker-compose.yml"
+    owner: ubuntu
+    group: ubuntu
+    mode: 0644
+
+- name: Start Docker Compose service
+  shell: sudo docker compose up -d
+  register: command_output
+  args:
+    chdir: "{{ docker }}"
+
+- name: Display compose result
+  debug:
+    var: command_output.stdout_lines
+
+- name: Get the IP address of the running container
+  shell: |
+    sudo docker inspect -f '{{ "{{ .NetworkSettings.IPAddress }}" }}' {{ container_name }}
+  register: container_ip_result
+  args:
+    executable: /bin/bash
+
+- name: Set the container IP address as a fact
+  set_fact:
+    container_ip: "{{ container_ip_result.stdout }}"
